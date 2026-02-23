@@ -31,9 +31,17 @@ def crawl():
                     file_path = 'data.csv'
                     file_exists = os.path.isfile(file_path)
                     
-                    with open(file_path, 'a', newline='', encoding='utf-8') as f:
+                    # Enhanced saving logic to prevent merged lines
+                    with open(file_path, 'a+', newline='', encoding='utf-8') as f:
+                        # Move to the end of the file and check the last character
+                        f.seek(0, 2) 
+                        if f.tell() > 0:
+                            f.seek(f.tell() - 1)
+                            if f.read(1) != '\n':
+                                f.write('\n')
+                        
                         writer = csv.writer(f)
-                        if not file_exists:
+                        if f.tell() == 0: # If file was totally empty, add header
                             writer.writerow(['timestamp', 'gym_count'])
                         writer.writerow([now, gym_count])
                     
