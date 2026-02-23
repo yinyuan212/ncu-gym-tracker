@@ -65,7 +65,41 @@
     <div class="chart-container">
         <canvas id="popularChart"></canvas>
     </div>
+    <div class="summary-box">
+        <div id="liveStatus" style="margin-bottom: 12px; font-family: 'Google Sans', sans-serif;">
+            <span id="liveBadge" style="background: #e8eaed; color: #5f6368; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 14px; display: inline-block;">
+                FETCHING LIVE DATA...
+            </span>
+        </div>
+    </div>
 
+<script>
+    // ... (Your existing code to load allData)
+
+    Papa.parse("data.csv", {
+        download: true,
+        header: true,
+        complete: function(results) {
+            allData = results.data.filter(r => r.gym_count && !isNaN(parseInt(r.gym_count)));
+            
+            // --- NEW: DISPLAY CURRENT PEOPLE ---
+            if (allData.length > 0) {
+                // The last line in your CSV is the most recent record
+                const latestEntry = allData[allData.length - 1];
+                const liveBadge = document.getElementById('liveBadge');
+                
+                // Style as "Live" with Google Green
+                liveBadge.style.background = "#34a853";
+                liveBadge.style.color = "white";
+                liveBadge.innerHTML = `LIVE: ${latestEntry.gym_count} people`;
+            }
+
+            updateChart();
+        }
+    });
+
+    // ... (Your existing chart rendering code)
+</script>
     <script>
         let allData = [];
         let myChart = null;
@@ -85,13 +119,28 @@
 
         // Load CSV Data
         Papa.parse("data.csv", {
-            download: true,
-            header: true,
-            complete: function(results) {
-                // Filter rows and ensure we have numbers
-                allData = results.data.filter(r => r.gym_count && !isNaN(parseInt(r.gym_count)));
-                updateChart();
-            }
+                download: true,
+                header: true,
+                complete: function(results) {
+                    allData = results.data.filter(r => r.gym_count && !isNaN(parseInt(r.gym_count)));
+                    
+                    // NEW FEATURE: Show current live people
+                    if (allData.length > 0) {
+                        const latestEntry = allData[allData.length - 1];
+                        const liveBadge = document.getElementById('liveBadge');
+                        
+                        // Change badge color to Green to indicate "Live"
+                        liveBadge.style.background = "#34a853";
+                        liveBadge.style.color = "white";
+                        liveBadge.innerHTML = `● LIVE: ${latestEntry.gym_count} people`;
+                        
+                        // Add the specific time it was updated
+                        document.getElementById('liveStatus').innerHTML += 
+                            `<div style="font-size: 12px; color: #5f6368; margin-top: 5px;">Last updated: ${latestEntry.timestamp}</div>`;
+                    }
+
+                    updateChart();
+                }
         });
 
         function updateChart() {
