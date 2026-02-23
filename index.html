@@ -119,28 +119,40 @@
 
         // Load CSV Data
         Papa.parse("data.csv", {
-                download: true,
-                header: true,
-                complete: function(results) {
-                    allData = results.data.filter(r => r.gym_count && !isNaN(parseInt(r.gym_count)));
+            download: true,
+            header: true,
+            complete: function(results) {
+                // Filter out empty rows
+                allData = results.data.filter(r => r.gym_count && !isNaN(parseInt(r.gym_count)));
+                
+                if (allData.length > 0) {
+                    const latestEntry = allData[allData.length - 1];
+                    const liveBadge = document.getElementById('liveBadge');
                     
-                    // NEW FEATURE: Show current live people
-                    if (allData.length > 0) {
-                        const latestEntry = allData[allData.length - 1];
-                        const liveBadge = document.getElementById('liveBadge');
-                        
-                        // Change badge color to Green to indicate "Live"
-                        liveBadge.style.background = "#34a853";
-                        liveBadge.style.color = "white";
-                        liveBadge.innerHTML = `● LIVE: ${latestEntry.gym_count} people`;
-                        
-                        // Add the specific time it was updated
-                        document.getElementById('liveStatus').innerHTML += 
-                            `<div style="font-size: 12px; color: #5f6368; margin-top: 5px;">Last updated: ${latestEntry.timestamp}</div>`;
-                    }
+                    // 1. Convert UTC string to Local Time
+                    // We append " UTC" to the string to tell the browser it's UTC+0
+                    const utcDate = new Date(latestEntry.timestamp.replace(/-/g, "/") + " UTC");
+                    
+                    // 2. Format the time for Taiwan (24h or 12h as you prefer)
+                    const twTime = utcDate.toLocaleString('zh-TW', { 
+                        hour12: false, 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    });
 
-                    updateChart();
+                    // Update UI
+                    liveBadge.style.background = "#34a853";
+                    liveBadge.style.color = "white";
+                    liveBadge.innerHTML = `● LIVE: ${latestEntry.gym_count} people`;
+                    
+                    // Display formatted Taiwan time
+                    document.getElementById('liveStatus').innerHTML += 
+                        `<div style="font-size: 12px; color: #5f6368; margin-top: 6px;">
+                            Last updated: ${twTime}
+                        </div>`;
                 }
+                updateChart();
+            }
         });
 
         function updateChart() {
