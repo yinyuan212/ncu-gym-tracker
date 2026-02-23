@@ -1,0 +1,34 @@
+name: NCU Gym Tracker
+
+on:
+  schedule:
+    # Runs every 30 minutes from 01:00 to 12:30 UTC 
+    # (Which is 09:00 to 20:30 Taiwan Time UTC+8)
+    - cron: '*/30 1-12 * * *'
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run scraper
+        run: python scraper.py
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "GymBot"
+          git config --global user.email "bot@github.com"
+          git add data.csv
+          git commit -m "Update gym data" || exit 0
+          git push

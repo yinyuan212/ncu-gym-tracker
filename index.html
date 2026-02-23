@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NCU Gym - Weekly Popularity</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        body { font-family: 'Google Sans', Roboto, Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; color: #3c4043; }
+        h2 { text-align: center; color: #1a73e8; }
+        
+        .day-buttons { 
+            display: flex; 
+            justify-content: center; 
+            gap: 8px; 
+            margin-bottom: 25px; 
+            flex-wrap: wrap;
+        }
+        
+        .day-btn {
+            border: 1px solid #dadce0;
+            background: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            color: #5f6368;
+        }
+
+        .day-btn:hover { background: #f1f3f4; }
+        .day-btn.active { 
+            background: #1a73e8; 
+            color: white; 
+            border-color: #1a73e8; 
+        }
+
+        .summary-box { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 8px; 
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 15px;
+        }
+
+        .chart-container { height: 400px; position: relative; }
+    </style>
+</head>
+<body>
+
+    <h2>NCU Gym Popular Times</h2>
+    
+    <div class="day-buttons" id="buttonGroup">
+        <button class="day-btn" data-day="1">Mon</button>
+        <button class="day-btn" data-day="2">Tue</button>
+        <button class="day-btn" data-day="3">Wed</button>
+        <button class="day-btn" data-day="4">Thu</button>
+        <button class="day-btn" data-day="5">Fri</button>
+        <button class="day-btn" data-day="6">Sat</button>
+        <button class="day-btn" data-day="0">Sun</button>
+    </div>
+
+    <div class="summary-box" id="statBox">Loading gym history...</div>
+
+    <div class="chart-container">
+        <canvas id="popularChart"></canvas>
+    </div>
+
+    <script>
+        let allData = [];
+        let myChart = null;
+        let currentDay = new Date().getDay(); // Default to today
+
+        // Initialize buttons
+        const buttons = document.querySelectorAll('.day-btn');
+        buttons.forEach(btn => {
+            if(parseInt(btn.dataset.day) === currentDay) btn.classList.add('active');
+            btn.addEventListener('click', () => {
+                buttons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentDay = parseInt(btn.dataset.day);
+                updateChart();
+            });
+        });
+
+        // Load CSV Data
+        Papa.parse("data.csv", {
+            download: true,
+            header: true,
+            complete: function(results) {
+                // Filter rows and ensure we have numbers
+                allData = results.data.filter(r => r.gym_count && !isNaN(parseInt(r.gym_count)));
+                updateChart();
+            }
+        });
+
+        function updateChart() {
+            const hourlySums = Array(24).fill(0);
+            const hourlyCounts = Array(24).fill(0);
+
+            allData.forEach(row => {
+                // Force the browser to treat the string as local time, not UTC
+                const dateStr = row.timestamp.replace(/-/g, "/");
+                const date = new Date(dateStr);
+                
+                // Check if the Day of Week matches the button selected
+                if (date.getDay() === currentDay) {
+                    const hour = date.getHours();
+                    const count = parseInt(row.gym_count);
+                    if (!isNaN(count)) {
+                        hourlySums[hour] += count;
+                        hourlyCounts[hour]++;
+                    }
+                }
+            });
+
+            // Calculate averages (Averages help when you have multiple weeks of data)
+            const averages = hourlySums.map((sum, i) => hourlyCounts[i] > 0 ? Math.round(sum / hourlyCounts[i]) : 0);
+            
+            let minVal = Infinity;
+            let bestHour = -1;
+
+            // Find the quietest hour between 9:00 and 21:00
+            for (let h = 9; h <= 21; h++) {
+                if (averages[h] > 0 && averages[h] < minVal) {
+                    minVal = averages[h];
+                    bestHour = h;
+                }
+            }
+
+            const statBox = document.getElementById('statBox');
+            if (bestHour !== -1) {
+                statBox.innerHTML = `Typically quietest at <b>${bestHour}:00</b> (~${minVal} people)`;
+            } else {
+                statBox.innerHTML = "No data recorded for this day yet.";
+            }
+
+            renderChart(averages, bestHour);
+        }
+
+        function renderChart(data, bestHour) {
+            const ctx = document.getElementById('popularChart').getContext('2d');
+            if (myChart) myChart.destroy();
+
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+                    datasets: [{
+                        label: 'Avg. Occupancy',
+                        data: data,
+                        backgroundColor: data.map((_, i) => i === bestHour ? '#34a853' : '#e8eaed'),
+                        hoverBackgroundColor: '#4285f4',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { min: 8, max: 22, grid: { display: false } },
+                        y: { beginAtZero: true, grid: { color: '#f1f3f4' } }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
